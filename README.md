@@ -1,6 +1,8 @@
 # 签名提取器
 
-将签名图片中的笔迹与背景分离，导出透明背景的 PNG 文件。数据全在本地处理，不上传至任何服务器。
+将签名图片中的笔迹与背景分离，导出透明背景的 PNG 文件。
+
+**所有图片处理均在浏览器本地完成，数据不会上传至任何服务器。**
 
 ## 功能
 
@@ -9,12 +11,11 @@
 - 实时预览原图与提取结果
 - 一键下载透明 PNG
 
-## 本地部署
+## 本地运行
 
 ### 1. 安装依赖
 
 ```bash
-cd signature-extractor
 pip install -r requirements.txt
 ```
 
@@ -39,15 +40,15 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 signature-extractor/
 ├── app/
-│   ├── main.py           # FastAPI 应用入口
-│   ├── services/
-│   │   └── extractor.py  # 签名提取逻辑
+│   ├── main.py           # FastAPI 入口（仅提供静态文件服务）
 │   └── static/           # 前端静态资源
 │       ├── index.html
 │       ├── styles.css
-│       └── app.js
+│       ├── app.js
+│       └── sign-sample-pencil.png
 ├── requirements.txt
 ├── run.py
+├── Dockerfile
 └── README.md
 ```
 
@@ -61,10 +62,8 @@ docker build -t signature-extractor:latest .
 
 ### 推送到 Docker Hub
 
-1. 登录 Docker Hub：`docker login`
-2. 替换 `YOUR_DOCKERHUB_USERNAME` 为你的用户名，然后执行：
-
 ```bash
+docker login
 docker tag signature-extractor:latest YOUR_DOCKERHUB_USERNAME/signature-extractor:latest
 docker push YOUR_DOCKERHUB_USERNAME/signature-extractor:latest
 ```
@@ -72,20 +71,15 @@ docker push YOUR_DOCKERHUB_USERNAME/signature-extractor:latest
 ### 服务器一键拉起
 
 ```bash
-docker run -d -p 8000:8000 --name signature-extractor YOUR_DOCKERHUB_USERNAME/signature-extractor:latest
+docker run -d -p 8000:8000 --name signature-extractor --restart unless-stopped \
+  YOUR_DOCKERHUB_USERNAME/signature-extractor:latest
 ```
 
 访问 **http://服务器IP:8000**
-
-持久运行（重启后自动启动）：
-
-```bash
-docker run -d -p 8000:8000 --name signature-extractor --restart unless-stopped YOUR_DOCKERHUB_USERNAME/signature-extractor:latest
-```
 
 ---
 
 ## 技术栈
 
-- **后端**：FastAPI + Pillow
-- **前端**：原生 HTML/CSS/JS，无构建步骤
+- **服务端**：FastAPI + uvicorn（仅负责静态文件托管）
+- **前端**：原生 HTML/CSS/JS，Canvas API 处理图片，无构建步骤
