@@ -95,30 +95,57 @@ thresholdSlider.addEventListener('input', () => {
   thresholdValue.textContent = thresholdSlider.value;
 });
 
+// 纯前端签名提取（Canvas API，图片数据不离开浏览器）
+function extractWithCanvas(file, threshold) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        data[i + 3] = brightness < threshold ? 255 : 0;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      canvas.toBlob(blob => {
+        if (blob) resolve(blob);
+        else reject(new Error('图片导出失败'));
+      }, 'image/png');
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('图片加载失败'));
+    };
+
+    img.src = url;
+  });
+}
+
 // 提取签名
 async function extract() {
   if (!currentFile) return;
-  
+
   extractBtn.disabled = true;
   btnText.hidden = true;
   btnLoader.hidden = false;
 
-  const formData = new FormData();
-  formData.append('file', currentFile);
-  formData.append('threshold', thresholdSlider.value);
-
   try {
-    const res = await fetch('/api/extract', {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(err.detail || '提取失败');
-    }
-
-    const blob = await res.blob();
+    const threshold = parseInt(thresholdSlider.value, 10);
+    const blob = await extractWithCanvas(currentFile, threshold);
     if (resultBlobUrl) URL.revokeObjectURL(resultBlobUrl);
     resultBlobUrl = URL.createObjectURL(blob);
     resultPreview.src = resultBlobUrl;
