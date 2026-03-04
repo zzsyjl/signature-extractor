@@ -1,0 +1,11 @@
+__pycache__
+*.py[cod]
+*$py.class
+.git
+.gitignore
+.env
+.venv
+venv
+run.py
+signature-extractor-preview.png
+signature-extractor-updated.png
