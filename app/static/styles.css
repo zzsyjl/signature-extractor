@@ -379,6 +379,17 @@ body {
   object-fit: contain;
 }
 
+.preview-tip {
+  margin: 0.6rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-ink-muted);
+  background: rgba(196, 92, 38, 0.06);
+  border-left: 3px solid var(--color-accent);
+  padding: 0.45rem 0.65rem;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  line-height: 1.5;
+}
+
 .placeholder {
   margin: 0;
   color: var(--color-muted);
