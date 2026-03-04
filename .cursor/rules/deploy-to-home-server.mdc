@@ -1,0 +1,66 @@
+---
+description: 将项目部署到家庭服务器（ssh yyhome）
+globs: 
+alwaysApply: false
+---
+
+# 部署到家庭服务器
+
+## 服务器信息
+
+- SSH 别名: `yyhome`，已配置免密登录
+- 系统: Ubuntu Linux (x86_64)
+- 运行环境: Docker
+- Docker Hub 用户名: `zzsyjl`
+- 公网访问: 通过 Cloudflare Tunnel（cloudflared 以系统服务运行，token 模式，路由在 Cloudflare Dashboard 配置）
+- 公网域名: `sign.yjl.app` → Cloudflare Tunnel → 服务器 localhost:8000
+
+## 一键部署
+
+项目根目录执行：
+
+```bash
+./deploy.sh
+```
+
+该脚本会自动完成：本地 buildx 跨架构构建 → 推送 Docker Hub → 服务器拉取 → 重启容器 → 验证服务。
+
+## 手动部署步骤
+
+### 1. 本地构建并推送到 Docker Hub
+
+本地为 macOS ARM64，服务器为 Linux x86_64，必须用 buildx 指定目标架构：
+
+```bash
+docker buildx build --platform linux/amd64 -t zzsyjl/signature-extractor:latest --push .
+```
+
+### 2. 服务器拉取并替换容器
+
+**重要：替换前先确认旧容器的端口映射，确保新容器使用相同的宿主机端口：**
+
+```bash
+ssh yyhome "docker ps --filter name=signature-extractor --format '{{.Ports}}'"
+```
+
+拉取新镜像并重启（端口按实际情况填写，当前为 8000:8000）：
+
+```bash
+ssh yyhome "\
+  docker pull zzsyjl/signature-extractor:latest && \
+  docker stop signature-extractor && docker rm signature-extractor && \
+  docker run -d -p 8000:8000 --name signature-extractor \
+  --restart unless-stopped zzsyjl/signature-extractor:latest"
+```
+
+### 3. 验证
+
+```bash
+ssh yyhome "curl -s -o /dev/null -w 'HTTP %{http_code}' http://localhost:8000/"
+```
+
+## 注意事项
+
+- **Cloudflare CDN 缓存**：更新 JS/CSS 等静态资源后，必须在 `index.html` 中递增版本号查询参数（如 `?v=3` → `?v=4`），否则公网用户会拿到缓存的旧文件
+- **Cache-Control**：已在 `app/main.py` 中通过 `CacheControlMiddleware` 设置 HTML 为 `no-cache`，JS/CSS 为 1 小时缓存
+- **跨架构构建**：不要用普通 `docker build`，必须用 `docker buildx build --platform linux/amd64`，否则 ARM 镜像在服务器上无法运行
